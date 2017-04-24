@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>SLPS</title>
+    <!--
+        By: Burey
+        Date: 20 April 2017
+        Desc: Poll Generator
+        Usage: Create your own polls and vote
+        on other users polls
+        
+        -->
+
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous" />
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.4/angular.min.js"></script>
+    <script src="https://unpkg.com/angular-toastr/dist/angular-toastr.tpls.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/angular-toastr/dist/angular-toastr.css" />
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/3.8.0/firebase.js"></script>
+
+    <!-- AngularFire -->
+    <script src="https://cdn.firebase.com/libs/angularfire/2.3.0/angularfire.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-google-chart/0.1.0/ng-google-chart.min.js" type="text/javascript"></script>
+    <script src="index.js"></script>
+    <link href="style.css">
+</head>
+<!--<body ng-app="chartApp" ng-controller="ChartCtrl">-->
+
+<body ng-app="chartApp">
+
+    <nav ng-init="pageManager.page=1">
+        <ul>
+            <li><a href="" ng-click="pageManager.page=1">Home</a></li>
+            <li><a href="" ng-click="pageManager.page=2">Polls</a></li>
+        </ul>
+    </nav>
+
+    <div id="main">
+
+        <h3>SLPS - SoloLearn Polls System</h3>
+        <h4>By Burey</h4>
+
+        <marquee><i><b>SoloLearn Polls System Updates</b></i> | Added Category filter | Added Toastr notifications | To see who voted on an option simply press the option (below the chart) | Users who wish to allow other users to add their own options to the poll can mark the <i><b>Allow Users To Add Options</b></i> checkbox | To apply changes to an existing poll you must click <i><b>Save Changes</b></i> | Polls/Options with <span style="color:red;"><b>red</b></span> color are unvoted by you | Polls/Options with <span style="color:green;"><b>green</b></span> color are voted by you | Please leave comments/suggestions in the <i><b>Comments</b></i> section of this code |</marquee>
+
+        <div ng-show="pageManager.page==1" ng-controller="HomeCtrl" style="text-align:center;margin-top:5%;">
+
+            <form ng-show="Auth" onsubmit="event.preventDefault()">
+                Logged as User: {{Auth.email.split('@')[0]}}
+                <br /><br />
+                <button class="btn-primary" ng-click="signOut()">Log Out</button>
+            </form>
+
+            <form ng-hide="Auth" onsubmit="event.preventDefault();">
+                <input id="uname" ng-model="userName" placeholder="User Name:" type="text" required /><br /><br />
+                <input id="pass" ng-model="password" ng-attr-type="{{(showPassword)? 'text':'password'}}" placeholder="Password:" required /><br />
+                <label>
+                <input ng-model="showPassword" type='checkbox' ng-init="showPassword=true" /> Show Password
+                </label><br />
+
+                <button type="submit" class="btn-info" ng-click="signIn()">Log In</button>
+                <button type="submit" class="btn-primary" ng-click="createUser()">Create User</button>
+            </form>
+            <br /><br />
+            <div style="background-color:lightgrey;border:1px solid black;">
+                Welcome to the polls system!<br /> Please register a new user in order to create new polls and vote on existing ones<br /> After you have logged in press on the Polls link on the top menu to go to the polls area
+            </div>
+            <p ng-if="message">Message: <strong>{{ message }}</strong></p>
+            <p ng-if="error">Error: <strong>{{ error }}</strong></p>
+        </div>
+
+
+        <!-- Chart generetor controls -->
+        <div ng-if="pageManager.page==2" ng-controller="PollCtrl" style="text-align:center;margin-top:5%;">
+            <div ng-hide="Auth">
+                Please Log In to Create and Vote on Polls
+            </div>
+            <div ng-if="Auth.uid!==undefined">
+                Logged as: {{Auth.email.split('@')[0]}}
+                <br />
+
+                <!-- Existing Polls -->
+                <div style="border:1px solid black;">
+                    <button class="btn-info" ng-click="primitives.togglePolls=!primitives.togglePolls" ng-init="primitives.togglePolls=true">Show/Hide Existing Polls:</button>
+                    <br />
+                    
+                    <div id="dispCategory">
+                    <label class="label label-primary">Category: </label>
+                    <select ng-model="catDisp" ng-options="catDisp.name+' ('+totalPolls(pollService,catDisp.id)+')' for catDisp in categories" ng-init="catDisp=categories[0]"></select>
+                    </div>
+                    
+                    <div ng-hide="pollService.length">
+                        <!--<div id="loader"></div>-->
+                        <img id="logo" src="http://www.itel.am//images/events_persons_apps/2016-Jul-14_08_07_2236402.jpg"> Loading Polls & Bakin' Cookies, please wait
+                    </div>
+                    
+                    
+                    
+                    
+                    <div style="overflow-y:scroll;height:400px;" ng-show="primitives.togglePolls && pollService.length">
+                        
+                    
+
+                    <span ng-show="catDisp.id===poll.category.id || !poll.category" ng-model="poll" ng-repeat="poll in pollService | orderObjectByVotes:true">
+    <hr style="height:1px;margin-top:3px;margin-bottom:3px;">
+    <a class="userVoted-{{userVotedPoll(poll)}}" ng-click="loadPoll(poll)" href="">{{poll.title}} </a><br />
+    By: {{poll.owner.name.split('@')[0]}}<br />
+    Voters: {{poll | totalVoters}} | Votes: {{poll | totalVotes}}
+        <span ng-show="Auth.uid===poll.owner.uid"><br /> My Poll</span><span ng-show="poll.createTime"><br />Created at: {{poll.createTime | timeToDate}}</span>
+                    </span>
+                    </div>
+                </div>
+                
+                <button class="btn-success" ng-click="pollWizardShow()">Poll Create Wizard</button>
+
+                <!-- Create/Edit poll options -->
+                <br />
+                <div>
+                    <div id="inTitle" ng-show="permission()">
+    <label class="label label-primary">Title: </label>
+    <input ng-model="myChart.options['title']" placeholder="Title:" />
+    <span ng-click="myChart.options['title']=undefined" class="glyphicon glyphicon-erase"></span><br />
+                    </div>
+
+
+                    <div id="inOption" ng-show="permission() || loadedPoll.allowUsersOptions">
+    <label class="label label-primary">Option: </label>
+    <input ng-model="primitives.dataOption" placeholder="New item name:" required />
+    <span class="glyphicon glyphicon-ok-circle" ng-click="addOption()"></span>
+                    <span ng-click="primitives.dataOption=undefined" class="glyphicon glyphicon-erase"></span>
+                    </div><br />
+                    
+                 
+                    <div id="inCategory" ng-show="permission()">
+                    <label class="label label-primary">Category: </label>
+                    <select ng-model="myChart.options['category']" ng-options="catIn.name for catIn in categories" ng-init="loadCategory()"></select>
+                    </div>
+                 
+                 
+                    
+                    <div id="inAllow" ng-show="permission()">
+    <label>
+        <input ng-model="primitives.allowUsersOptions" type='checkbox' ng-init="primitives.allowUsersOptions=false" /> Allow Users To Add Options
+    </label><br />
+    </div>
+                    <!-- Chart controls buttons -->
+
+                    <!--<button ng-class="((dataOption && dataValue)? 'btn-success':'btn-warning')" ng-click="addOption()">Add</button>-->
+                    
+                    
+                    <div id="inClear" ng-show="permission() && primitives.pollWizard">
+    <button class="btn-danger" ng-click="clearChart()">Clear Chart</button>
+    <!--<button class="btn-primary" ng-click="addRandomData()">Rand</button>-->
+    <br />
+    </div>
+    
+    
+    <button ng-show="primitives.pollWizard" ng-disabled="myChart.data['rows'].length<2" class="btn-success" ng-click="createPoll()">Create New Poll</button>
+    <button ng-show="(permission() && !primitives.pollWizard) || (primitives.allowUsersOptions && !primitives.pollWizard)" ng-disabled="myChart.data['rows'].length<2" class="btn-info" ng-click="saveChanges(true)">Save Changes</button>
+    <button ng-show="permission() && !primitives.pollWizard" class="btn-danger" ng-click="deletePoll()">Delete Poll</button>
+                </div>
+                <!-- Create/Edit poll ends -->
+            
+            
+            <!-- Chart element -->
+            <span id="anchorChart" ng-if="loadedPoll" style="background-color:lightgrey;color:blue;"><i><b>{{loadedPoll.title}} | by {{loadedPoll.owner.name.split('@')[0]}}</b></i></span>
+            <div id="anchorChart" style="border:1px solid lightblue;width:100%;height:100%;" google-chart chart="myChart"></div>
+
+            <!-- Chart type selector -->
+            <div ng-show="loadedPoll || primitives.pollWizard">
+                <label class="label label-primary">Chart Type: </label>
+                <select ng-model="chartType" ng-options="chartType.name for chartType in chartTypes" ng-init="chartType=chartTypes[0]" ng-change="myChart.type=chartType.type">
+     </select>
+                <!-- Pie Chart settings -->
+                <span ng-show="myChart.type==='PieChart'">
+     <label ng-class="((myChart.options['is3D']===true) ? 'label label-success':'label label-danger')"><input ng-class="((myChart.options['is3D']===true) ? 'label label-success':'label label-danger')" type="checkbox" ng-model="myChart.options['is3D']"/>3D</label>
+     <input ng-change="updateDonut()" ng-show="!myChart.options['is3D']" ng-model="primitives.holeSize" style="display:inline-block;width:auto" type="range" ng-init="primitives.holeSize=0" min="0" max="9" />
+     </span>
+            </div>
+            <!-- Chart voting options -->
+            <div style="text-align:center;font-size:25px">
+                <div ng-repeat="row in myChart.data['rows'] | orderObjectBy:true">
+                    <span ng-show="primitives.pollWizard || loadedPoll">
+            <input type="checkbox" ng-checked="userVotedOption(row)" ng-disabled="true" />
+            <span ng-hide="userVotedOption(row)" class="glyphicon glyphicon-thumbs-up" ng-click="increment(row)"></span>
+                    <span ng-show="userVotedOption(row)" class="glyphicon glyphicon-thumbs-down" ng-click="decrement(row)"></span>
+                    <span ng-show="primitives.pollWizard || Auth.uid===loadedPoll.owner.uid" class="glyphicon glyphicon-trash" ng-click="trash(row)"></span>
+                    </span>
+                    <!--<span ng-click="showVotes(row)">-->
+                    <a class="userVoted-{{userVotedOption(row)}}" href="" ng-click="row.toggle=!row.toggle" ng-init="row.toggle=false">
+            {{row['c'][0].v}} - {{row['c'][1].v}}
+                    </a>
+            <span ng-repeat="vote in row['c'][2].votes" ng-show="row.toggle"><br />{{vote.name.split('@')[0]}}</span>
+            <hr style="height:0px;margin-top:0px;margin-bottom:0px;">
+            <!--</span>-->
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+    <script>
+        // Initialize Firebase
+        var config = {
+            apiKey: "AIzaSyDgTOAG5FpIsXFV4UXGxvhrmHPWFFnoa6o",
+            authDomain: "poll-generator.firebaseapp.com",
+            databaseURL: "https://poll-generator.firebaseio.com",
+            projectId: "poll-generator",
+            storageBucket: "poll-generator.appspot.com",
+            messagingSenderId: "634277423037"
+        };
+        firebase.initializeApp(config);
+    </script>
+</body>
+</html>
