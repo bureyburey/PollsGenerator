@@ -1,6 +1,11 @@
 body {
-    font-family:"Times New Roman";
+    font-family: Sans-Serif;
 }
+
+h3{
+   background-color:lightblue;
+}
+
 marquee{
    margin-top:0px;
    margin-bottom:0px;
