@@ -240,6 +240,35 @@ $scope.myChart.addColumn($scope.primitives.dataOption);
             $scope.myChart.trash(row);
         }
 
+        $scope.addComment = function(){
+            if($scope.primitives.commentBody === undefined || $scope.primitives.commentBody.length === 0){
+                toastr.error("Please Enter Comment!");
+                return;
+            }
+            
+           $scope.loadedPoll.comments=$scope.loadedPoll.comments || [];
+            
+            
+           comment={
+              owner: {
+                    uid: $scope.Auth['uid'],
+                    name: $scope.Auth['email']
+                },
+                body:$scope.primitives.commentBody,
+                createTime: firebase.database.ServerValue.TIMESTAMP
+           }
+            $scope.loadedPoll.comments.push(comment);
+            $scope.saveChanges(false);
+            $scope.primitives.commentBody="";
+        }
+        
+        $scope.trashComment = function(comment){
+            if (!confirm("Delete Comment?")){return;}
+            ind = $scope.loadedPoll.comments.indexOf(comment);
+            $scope.loadedPoll.comments.splice(ind, 1);
+            $scope.saveChanges(false);
+        }
+
         $scope.loadCategory = function(){
             ind = 0;
             if($scope.loadedPoll && $scope.loadedPoll.category){
@@ -302,6 +331,7 @@ $scope.myChart.addColumn($scope.primitives.dataOption);
             if(ind===-1 || !$scope.myChart.options['title']){return;}
 
             $scope.pollService[ind].data =$scope.loadedPoll.data;
+           $scope.pollService[ind].comments=$scope.loadedPoll.comments || [];
             $scope.pollService[ind].allowUsersOptions = $scope.primitives.allowUsersOptions;
             $scope.pollService[ind].title = $scope.myChart.options['title'];
             $scope.pollService[ind].category = $scope.myChart.options['category'];
@@ -315,7 +345,9 @@ $scope.myChart.addColumn($scope.primitives.dataOption);
 
             $scope.pollService.$save(ind).then(function(ref) {
                 if(showToast){toastr.info($scope.myChart.options.title,"Changes Saved!");}
-                $scope.myChart.setData($scope.loadedPoll);
+              //toastr.info(JSON.stringify($scope.loadedPoll.comments,null,2));
+              $scope.loadedPoll.comments=$scope.pollService[ind].comments || [];
+               $scope.myChart.setData($scope.loadedPoll);
             });
         }
 
@@ -374,16 +406,6 @@ app.filter("timeToDate", function() {
     }
 });
 
-// app.filter('totalPolls', function() {
-//     return function(polls,categoryId) {
-//         count = 0;
-//         polls.forEach(function(poll){
-//             count += (poll.category.id===category.id)? 1:0;
-//         });
-//         return count;
-//     }
-// });
-
 app.filter('totalVotes', function() {
     return function(poll) {
         count = 0;
@@ -400,10 +422,13 @@ app.filter('totalVoters', function() {
         poll.data['rows'].forEach(function(row){
             votes=((row['c'][2]===undefined)? []:row['c'][2]['votes']);
             votes.forEach(function(vote){
-               uids.push(vote.uid);
+                if(uids.indexOf(vote.uid) === -1){
+                    uids.push(vote.uid);
+                }
             });
         });
-        return (new Set(uids)).size;
+        // return (new Set(uids)).size;
+        return uids.length;
     }
 });
 
